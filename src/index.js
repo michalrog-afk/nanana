@@ -594,10 +594,33 @@ app.get( '/logs', authenticateRequest, ( req, res ) => {
   } );
 } );
 
-// 启动服务器
-const PORT = process.env.PORT || 3000;
+// 在所有路由定义之后，404处理之前添加方法不允许的处理
+const VALID_ROUTES = {
+  '/': ['GET'],
+  '/v1/models': ['GET'],
+  '/checksum': ['GET'],
+  '/env-checksum': ['GET'],
+  '/v1/chat/completions': ['POST'],
+  '/logs': ['GET']
+};
 
-// 添加404处理中间件，必须放在所有路由之后
+// 添加405处理中间件
+app.use( ( req, res, next ) => {
+  const route = VALID_ROUTES[req.path];
+  if ( route ) {
+    // 如果路由存在但方法不正确
+    if ( !route.includes( req.method ) ) {
+      return res.status( 405 ).json( {
+        error: 'Method Not Allowed',
+        message: `The ${req.method} method is not allowed for this endpoint.`,
+        allowed_methods: route
+      } );
+    }
+  }
+  next();
+} );
+
+// 添加404处理中间件
 app.use( ( req, res ) => {
   res.status( 404 ).json( {
     error: 'Not Found',
@@ -605,6 +628,8 @@ app.use( ( req, res ) => {
   } );
 } );
 
+// 启动服务器
+const PORT = process.env.PORT || 3000;
 app.listen( PORT, () => {
   console.log( `服务器运行在端口 ${PORT}` );
 } );
